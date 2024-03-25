@@ -1,0 +1,7 @@
+<html>
+    <?php 
+        $hello = "Hello World!";
+        echo $hello;
+    ?>
+
+</html>
