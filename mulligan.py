@@ -20,17 +20,16 @@ class Deck:
         if len(cards) < 50: #50
             self.cards = cards
         else:
-            raise ValueError("The deck must contain exactly 5 cards.")
+            raise ValueError("The deck must contain exactly 50 cards.")
 
     def shuffle(self):
         random.shuffle(self.cards)
-        return self.cards
     
     def draw_five(self, option: bool = False):
         self.hand = self.cards[:5]
         if option is True:
             self.cards = self.cards[5:]
-        return self.hand, self.cards
+        return self.hand
 
     def add_life(self, number):
         self.life = self.cards[:number]
@@ -45,6 +44,14 @@ class Deck:
         self.hand.append(self.life[0])
         self.life = self.life[1:]
         return self.hand, self.life
+    
+    def trash(self, option, amount=None):
+        if option == "trigger":
+            self.life = self.life[1:]
+        if option == "counter":
+            self.hand = self.hand[amount:]
+        if option == "deck":
+            self.cards = self.cards[amount:]
 
 class Card:
     def __init__(self):
@@ -66,7 +73,7 @@ class Card:
         self.E6T = {"type":"event","counter":6000,"trigger":True}
         self.ST = {"type":"stage","counter":0,"trigger":True}
         self.S = {"type":"stage","counter":0,"trigger":False}
-
+    
 # my_deck = Deck([1,2,3,4,5,6,7,8,9,10])
 # my_deck.shuffle()
 # print(my_deck.draw_five(True))
@@ -74,7 +81,10 @@ class Card:
 # print(my_deck.take_life())
 
 card = Card()
-deck = Deck([card.C1T, card.C2T, card.C2T, card.C, card.C, card.ET])
+
+decklist = []
+
+
 
 counters = [item["counter"] for item in deck.cards]
 print(counters)
