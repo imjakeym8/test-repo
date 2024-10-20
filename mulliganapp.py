@@ -4,9 +4,13 @@ from discord.ext import commands
 import os
 from dotenv import load_dotenv
 
+import mulligan
+
 intents = discord.Intents.all()
 token = os.getenv('DC_JOLLIEB_TOKEN')
 bot = commands.Bot(command_prefix="/", intents=intents)
+
+cardtype = mulligan.Card()
 
 @bot.event
 async def on_ready():
@@ -29,6 +33,33 @@ class MyButton(discord.ui.Button):
     async def callback(self, interaction:discord.Interaction):
         await self.custom_callback(interaction)
 
+class TriggerButton(discord.ui.View):
+    def __init__(self, *, timeout: float | None = 180):
+        super().__init__(timeout=timeout)
+
+class FeedbackModal(discord.ui.Modal):
+    def __init__(self, title="Please input how many cards are included.", text_inputs: list[discord.ui.TextInput] = None, parent_view = None):
+        super().__init__(title=title)
+        self.text_inputs = text_inputs if text_inputs else []
+        self.parent_view = parent_view if parent_view else None
+        for text_input in self.text_inputs:
+            self.add_item(text_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        answers = [ text_input.value for text_input in self.text_inputs ]
+    
+        if getattr(self, 'update_character', False):  
+            self.parent_view.character.extend(answers)
+            print(self.parent_view.character)
+        elif getattr(self, 'update_event', False):  
+            self.parent_view.event.extend(answers)
+            print(self.parent_view.event)
+        elif getattr(self, 'update_stage', False): 
+            self.parent_view.stage.extend(answers)
+            print(self.parent_view.stage)
+
+
 class DeckButton(discord.ui.View):
     def __init__(self, *, timeout: float | None = 180):
         super().__init__(timeout=timeout)
@@ -40,52 +71,72 @@ class DeckButton(discord.ui.View):
         self.add_item(MyButton(label="Stage", callback=self.strigger_callback))
 
     async def ctrigger_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.cmodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.cmodal_callback))
         await interaction.response.edit_message(view=trigger)
     
     async def etrigger_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.emodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.emodal_callback))
         await interaction.response.edit_message(view=trigger)    
 
     async def strigger_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.smodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.smodal_callback))
         await interaction.response.edit_message(view=trigger)
     
     async def cmodal_callback(self, interaction: discord.Interaction):
-        feedbackmodal = FeedbackModal()
-        feedbackmodal.add_item()
+        await interaction.response.defer()
+        text_inputs = [
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 1000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 2000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="No Counter", default=0, required=False)
+        ]
+        feedbackmodal = FeedbackModal(text_inputs=text_inputs, parent_view=self)
+        feedbackmodal.update_character = True
         await interaction.response.send_modal(feedbackmodal)
-    
-class TriggerButton(discord.ui.View, DeckButton):
-    def __init__(self, *, timeout: float | None = 180):
-        super().__init__(timeout=timeout)
 
-class FeedbackModal(discord.ui.Modal, DeckButton, title="Please input how many cards are included."):
-    counter_1k = discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 1000", default="", required=False)
-    counter_2k = discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 2000", default="", required=False)
-    counter_n = discord.ui.TextInput(style=discord.TextStyle.short, label="No Counter", default="", required=False) 
+    async def emodal_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        text_inputs = [
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 1000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 2000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 3000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="Counter: 4000", default=0, required=False),
+            discord.ui.TextInput(style=discord.TextStyle.short, label="No Counter", default=0, required=False)
+        ]
+        feedbackmodal = FeedbackModal(text_inputs=text_inputs, parent_view=self)
+        feedbackmodal.update_event = True
+        await interaction.response.send_modal(feedbackmodal)
 
-    async def on_submit(self, interaction: discord.Interaction):
-        # Process the values as needed. Here's an example message:
-        feedback = (
-            f"Counter 1000: {self.counter_1k.value or 'None'}\n"
-            f"Counter 2000: {self.counter_2k.value or 'None'}\n"
-            f"No Counter: {self.counter_n.value or 'None'}"
-        )
-        await interaction.response.send_message(feedback, ephemeral=True)
+    async def smodal_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        text_inputs = [
+            discord.ui.TextInput(style=discord.TextStyle.short, label="No Counter", default=0, required=False)
+        ]
+        feedbackmodal = FeedbackModal(text_inputs=text_inputs, parent_view=self)
+        feedbackmodal.update_stage = True
+        await interaction.response.send_modal(feedbackmodal)
 
-        if counter_1k is not None:
-
-        if counter_2k is not None:
-        if counter_n is not None:
-            
-
+#    async def on_submit(self, interaction: discord.Interaction):
+#        # Process the values as needed. Here's an example message:
+#        feedback = (
+#            f"Counter 1000: {self.counter_1k.value or 'None'}\n"
+#            f"Counter 2000: {self.counter_2k.value or 'None'}\n"
+#            f"No Counter: {self.counter_n.value or 'None'}"
+#        )
+#        await interaction.response.send_message(feedback, ephemeral=True)
+#
+#        if counter_1k is not None:
+#
+#        if counter_2k is not None:
+#        if counter_n is not None:
 
 #class NumberSelectView(discord.ui.View):
 #    def __init__(self):

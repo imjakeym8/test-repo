@@ -62,14 +62,18 @@ class Card:
         self.C2 = {"type":"character","counter":2000,"trigger":False}
         self.C = {"type":"character","counter":0,"trigger":False}
         self.E = {"type":"event","counter":0,"trigger":False}
+        self.E1 = {"type":"event","counter":1000,"trigger":False}
         self.E2 = {"type":"event","counter":2000,"trigger":False}
         self.E3 = {"type":"event","counter":3000,"trigger":False}
         self.E4 = {"type":"event","counter":4000,"trigger":False}
+        self.E5 = {"type":"event","counter":5000,"trigger":False} #No cards with this trait exist to this day.
         self.E6 = {"type":"event","counter":6000,"trigger":False}
         self.ET = {"type":"event","counter":0,"trigger":True}
+        self.E1T = {"type":"event","counter":1000,"trigger":True}
         self.E2T = {"type":"event","counter":2000,"trigger":True}
         self.E3T = {"type":"event","counter":3000,"trigger":True}
         self.E4T = {"type":"event","counter":4000,"trigger":True}
+        self.E5T = {"type":"event","counter":5000,"trigger":True}
         self.E6T = {"type":"event","counter":6000,"trigger":True}
         self.ST = {"type":"stage","counter":0,"trigger":True}
         self.S = {"type":"stage","counter":0,"trigger":False}
@@ -80,11 +84,11 @@ class Card:
 # my_deck.add_life(2)
 # print(my_deck.take_life())
 
-card = Card()
-
-decklist = []
-
-
-
-counters = [item["counter"] for item in deck.cards]
-print(counters)
+# card = Card()
+# 
+# decklist = []
+# 
+# 
+# 
+# counters = [item["counter"] for item in deck.cards]
+# print(counters)

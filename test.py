@@ -5,5 +5,5 @@ class Some:
 some = Some()
 a_list = []
 
-a_list.extend([some.value] * 6)
+a_list.extend([some.value] * 1)
 print(a_list)
