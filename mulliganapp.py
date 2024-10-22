@@ -24,7 +24,7 @@ async def on_ready():
 async def build(interaction: discord.Interaction):
     buttonguide = EmbedGuide()
     myview = DeckButton()
-    await interaction.response.send_message(embed=buttonguide, view=myview)
+    await interaction.response.send_message(embed=buttonguide, view=myview,ephemeral=True)
 
 class EmbedGuide(discord.Embed):
     def __init__(self, title="Mulligan Simulator", description="Please build your deck first given the options below."):
@@ -56,6 +56,7 @@ class FeedbackModal(discord.ui.Modal):
         self.text_inputs = text_inputs if text_inputs else []
         self.parent_view = parent_view if parent_view else None
         self.sum = None
+        self.ratios = None
         for text_input in self.text_inputs:
             self.add_item(text_input)
 
@@ -79,7 +80,7 @@ class FeedbackModal(discord.ui.Modal):
             self.parent_view.event.extend([cardtype.E3T] * int(answers[2]))
             self.parent_view.event.extend([cardtype.E4T] * int(answers[3]))
             self.parent_view.event.extend([cardtype.ET] * int(answers[4]))
-            print(self.parent_view.event)
+            # print(self.parent_view.event)
         elif getattr(self, 'update_eventnt', False):  
             self.parent_view.event.extend([cardtype.E1] * int(answers[0]))
             self.parent_view.event.extend([cardtype.E2] * int(answers[1]))
@@ -133,6 +134,14 @@ class FeedbackModal(discord.ui.Modal):
         event_ratio = len(event_list) / 50 * 100 if event_list != [] else 0      
         trigger_ratio = len(trigger_list) / 50 * 100 if trigger_list != [] else 0
         
+        self.ratios = [
+            {"category": "Bricks", "ratio": brick_ratio, "count": len(brick_list)},
+            {"category": "1000 Counters", "ratio": counter1k_ratio, "count": len(counter1k_list)},
+            {"category": "2000 Counters", "ratio": counter2k_ratio, "count": len(counter2k_list)},
+            {"category": "Event Counters", "ratio": event_ratio, "count": len(event_list)},
+            {"category": "Total Counters", "ratio": counter_ratio, "count": len(counter_list)},
+            {"category": "Triggers", "ratio": trigger_ratio, "count": len(trigger_list)},
+        ]
 
         embed = EmbedGuide(description="Here are your deck's stats.\n\nPress `Save` to register your deck.")
         embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
@@ -148,22 +157,58 @@ class FeedbackModal(discord.ui.Modal):
 
         await interaction.edit_original_response(embed=embed,view=self.parent_view)
 
-    async def save_callback(self, interaction:discord.Interaction):
-        from pymongo import MongoClient
+    async def savestats(self):
+        # Calculate statistics without interacting with the Discord API
+        brick_list = [each["counter"] for each in self.sum if each["counter"] < 1000]
+        counter_list = [each["counter"] for each in self.sum if each["counter"] >= 1000]
+        counter1k_list = [each["counter"] for each in self.sum if each["counter"] == 1000 and each["type"] == "character"]
+        counter2k_list = [each["counter"] for each in self.sum if each["counter"] == 2000 and each["type"] == "character"]
+        event_list = [each["counter"] for each in self.sum if each["counter"] >= 2000 and each["type"] == "event"]
+        trigger_list = [each["trigger"] for each in self.sum if each["trigger"] is True]
 
+        # Calculate ratios
+        brick_ratio = len(brick_list) / 50 * 100 if brick_list else 0
+        counter_ratio = len(counter_list) / 50 * 100 if counter_list else 0
+        counter1k_ratio = len(counter1k_list) / 50 * 100 if counter1k_list else 0
+        counter2k_ratio = len(counter2k_list) / 50 * 100 if counter2k_list else 0
+        event_ratio = len(event_list) / 50 * 100 if event_list else 0      
+        trigger_ratio = len(trigger_list) / 50 * 100 if trigger_list else 0
+
+        # Store ratios in a list of dictionaries
+        self.ratios = [
+            {"category": "Bricks", "ratio": brick_ratio, "count": len(brick_list)},
+            {"category": "1000 Counters", "ratio": counter1k_ratio, "count": len(counter1k_list)},
+            {"category": "2000 Counters", "ratio": counter2k_ratio, "count": len(counter2k_list)},
+            {"category": "Event Counters", "ratio": event_ratio, "count": len(event_list)},
+            {"category": "Total Counters", "ratio": counter_ratio, "count": len(counter_list)},
+            {"category": "Triggers", "ratio": trigger_ratio, "count": len(trigger_list)},
+        ]
+
+    async def save_callback(self, interaction:discord.Interaction):
         await interaction.response.defer()
+        
+        if self.ratios is None:
+            await self.savestats()
+
+        from pymongo import MongoClient
         client = MongoClient(local_uri)
         db = client.mulligan
         coll = db.decks
 
         try:
             ans = coll.find_one({"uid":interaction.user.id},{"_id":0})
+            deck_data = {
+                "uid": interaction.user.id,
+                "deck": self.sum,
+                "stats": self.ratios
+            }
             if ans is None:
-                coll.insert_one({"uid":interaction.user.id,"deck":self.sum})
+                coll.insert_one(deck_data)
                 # print("Added.")
-                await interaction.followup.send("Deck saved successfully!")
+                await interaction.followup.send("Deck saved successfully!", ephemeral=True)
             else:
-                await interaction.followup.send("Deck already exists.")
+                coll.update_one({"uid": interaction.user.id}, {"$set": deck_data})
+                await interaction.followup.send("Deck updated successfully!", ephemeral=True)
         
         except Exception as e:
             print(f"An error occured: {e}")
