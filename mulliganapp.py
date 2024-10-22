@@ -3,7 +3,6 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
-from pymongo import MongoClient
 
 import mulligan
 
@@ -23,14 +22,13 @@ async def on_ready():
 
 @bot.tree.command(name="build", description="Build your deck.")
 async def build(interaction: discord.Interaction):
-    buttonguide = discord.Embed(title="Mulligan Simulator", description="Please build your deck first given the options below.")
+    buttonguide = EmbedGuide()
     myview = DeckButton()
     await interaction.response.send_message(embed=buttonguide, view=myview)
 
 class EmbedGuide(discord.Embed):
     def __init__(self, title="Mulligan Simulator", description="Please build your deck first given the options below."):
         super().__init__(title=title,description=description)
-
 
 class MyButton(discord.ui.Button):
     def __init__(self, label, callback, style=discord.ButtonStyle.primary):
@@ -41,7 +39,7 @@ class MyButton(discord.ui.Button):
         await self.custom_callback(interaction)
 
 class FinalButton(discord.ui.Button):
-    def __init__(self, callback, label="Save", style=discord.ButtonStyle.success):
+    def __init__(self, callback, label, style=discord.ButtonStyle.success):
         super().__init__(label=label, style=style)
         self.custom_callback = callback
 
@@ -57,7 +55,7 @@ class FeedbackModal(discord.ui.Modal):
         super().__init__(title=title)
         self.text_inputs = text_inputs if text_inputs else []
         self.parent_view = parent_view if parent_view else None
-        self.sum = [ parent_view.character + parent_view.event + parent_view.stage if parent_view else None ]
+        self.sum = None
         for text_input in self.text_inputs:
             self.add_item(text_input)
 
@@ -69,12 +67,12 @@ class FeedbackModal(discord.ui.Modal):
             self.parent_view.character.extend([cardtype.C1T] * int(answers[0]))
             self.parent_view.character.extend([cardtype.C2T] * int(answers[1]))
             self.parent_view.character.extend([cardtype.CT] * int(answers[2]))
-            print(self.parent_view.character)
+            # print(self.parent_view.character)
         elif getattr(self, 'update_characternt', False):
             self.parent_view.character.extend([cardtype.C1] * int(answers[0]))
             self.parent_view.character.extend([cardtype.C2] * int(answers[1]))
             self.parent_view.character.extend([cardtype.C] * int(answers[2]))
-            print(self.parent_view.character)
+            # print(self.parent_view.character)
         elif getattr(self, 'update_event', False):  
             self.parent_view.event.extend([cardtype.E1T] * int(answers[0]))
             self.parent_view.event.extend([cardtype.E2T] * int(answers[1]))
@@ -88,38 +86,87 @@ class FeedbackModal(discord.ui.Modal):
             self.parent_view.event.extend([cardtype.E3] * int(answers[2]))
             self.parent_view.event.extend([cardtype.E4] * int(answers[3]))
             self.parent_view.event.extend([cardtype.E] * int(answers[4]))
-            print(self.parent_view.event)
+            # print(self.parent_view.event)
         elif getattr(self, 'update_stage', False):
             self.parent_view.stage.extend([cardtype.ST] * int(answers[0]))
-            print(self.parent_view.stage)
+            # print(self.parent_view.stage)
         elif getattr(self, 'update_stagent', False):
             self.parent_view.stage.extend([cardtype.S] * int(answers[0]))
-            print(self.parent_view.stage)
+            # print(self.parent_view.stage)
+        else:
+            await interaction.followup.send("An error occured.")
 
-        embed = EmbedGuide()
+        # Totals the currently added cards on submit.
+        self.sum = self.parent_view.character + self.parent_view.event + self.parent_view.stage
+
+        if len(self.sum) == 50:
+            embed = EmbedGuide(description="Congratulations, you've now built your deck. Press `Save` to register your deck or `Stats` to check your deck's stats.")
+            embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
+            embed.add_field(name="Events",value=str(len(self.parent_view.event)))
+            embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
+            embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
+            self.parent_view.clear_items()
+            self.parent_view.add_item(FinalButton(label="Save",callback=self.save_callback))
+            self.parent_view.add_item(FinalButton(label="Stats",callback=self.checkstats))
+        else:
+            embed = EmbedGuide()
+            embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
+            embed.add_field(name="Events",value=str(len(self.parent_view.event)))
+            embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
+
+        await interaction.edit_original_response(embed=embed,view=self.parent_view)
+
+    async def checkstats(self, interaction:discord.Interaction):
+        # Calculate percentage of bricks, counters 1k, counter 2k, counters inc. events, event counters, triggers.
+        await interaction.response.defer()
+        brick_list = [ each["counter"] for each in self.sum if each["counter"] < 1000 ]
+        counter_list = [ each["counter"] for each in self.sum if each["counter"] >= 1000 ]
+        counter1k_list = [ each["counter"] for each in self.sum if each["counter"] == 1000 and each["type"] == "character" ]
+        counter2k_list = [ each["counter"] for each in self.sum if each["counter"] == 2000 and each["type"] == "character" ]
+        event_list = [ each["counter"] for each in self.sum if each["counter"] >= 2000 and each["type"] == "event"]
+        trigger_list = [ each["trigger"] for each in self.sum if each["trigger"] is True]
+
+        brick_ratio = len(brick_list) / 50 * 100 if brick_list != [] else 0
+        counter_ratio = len(counter_list) / 50 * 100 if counter_list != [] else 0
+        counter1k_ratio = len(counter1k_list) / 50 * 100 if counter1k_list != [] else 0
+        counter2k_ratio = len(counter2k_list) / 50 * 100 if counter2k_list != [] else 0
+        event_ratio = len(event_list) / 50 * 100 if event_list != [] else 0      
+        trigger_ratio = len(trigger_list) / 50 * 100 if trigger_list != [] else 0
+        
+
+        embed = EmbedGuide(description="Here are your deck's stats.\n\nPress `Save` to register your deck.")
         embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
         embed.add_field(name="Events",value=str(len(self.parent_view.event)))
         embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
+        embed.add_field(name="Bricks",value=f"{int(brick_ratio)} % ({len(brick_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="1000 Counters",value=f"{int(counter1k_ratio)} % ({len(counter1k_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="2000 Counters",value=f"{int(counter2k_ratio)} % ({len(counter2k_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="Event Counters",value=f"{int(event_ratio)} % ({len(event_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="Total Counters",value=f"{int(counter_ratio)} % ({len(counter_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="Triggers",value=f"{int(trigger_ratio)} % ({len(trigger_list)} out of 50 cards)",inline=False)
+        embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
 
-        sum = len(self.parent_view.character) + len(self.parent_view.event) + len(self.parent_view.stage)
-        if sum == 50:
-            self.parent_view.add_item(FinalButton(callback=self.save_callback))
         await interaction.edit_original_response(embed=embed,view=self.parent_view)
 
     async def save_callback(self, interaction:discord.Interaction):
+        from pymongo import MongoClient
+
         await interaction.response.defer()
         client = MongoClient(local_uri)
         db = client.mulligan
         coll = db.decks
-        print(self.sum)
+
         try:
-            ans = coll.find_one({"uid":discord.Interaction.user.id},{"_id":0})
+            ans = coll.find_one({"uid":interaction.user.id},{"_id":0})
             if ans is None:
-                coll.insert_one({{"uid":discord.Interaction.user.id},{"deck":self.sum}})
-                print("Added.")
-                await interaction.followup.send("Done!")
+                coll.insert_one({"uid":interaction.user.id,"deck":self.sum})
+                # print("Added.")
+                await interaction.followup.send("Deck saved successfully!")
+            else:
+                await interaction.followup.send("Deck already exists.")
+        
         except Exception as e:
-            return f"An error occured: {e}"         
+            print(f"An error occured: {e}")
 
 class DeckButton(discord.ui.View):
     def __init__(self, *, timeout: float | None = 180):
