@@ -1,4 +1,13 @@
 import random
+from pymongo import MongoClient as mc
+import os
+from dotenv import load_dotenv
+
+
+local_uri = os.getenv('MONGODB_LOCAL_URI')
+client = mc(local_uri)
+db = client.mulligan
+coll = db.decks
 
 # A deck can contain the ff:
 # event, character, stage (E,C,S)
@@ -17,10 +26,13 @@ class Deck:
     def __init__(self, cards: list):
         self.life = None
         self.hand = None
-        if len(cards) < 50: #50
+        if len(cards) == 50: #50
             self.cards = cards
         else:
             raise ValueError("The deck must contain exactly 50 cards.")
+        
+    def check(self):
+        return [self.hand, self.life, self.cards]
 
     def shuffle(self):
         random.shuffle(self.cards)
@@ -34,24 +46,32 @@ class Deck:
     def add_life(self, number):
         self.life = self.cards[:number]
         self.cards = self.cards[number:]
+        return [self.life, self.cards]
 
     def draw(self):
         self.hand.append(self.cards[0])
         self.cards = self.cards[1:]
-        return self.hand, self.cards 
+        return [self.hand, self.cards]
 
     def take_life(self):
         self.hand.append(self.life[0])
         self.life = self.life[1:]
-        return self.hand, self.life
+        return [self.hand, self.life]
     
+    def play(self, amount):
+            self.hand = self.hand[amount:]
+            return self.hand
+
     def trash(self, option, amount=None):
         if option == "trigger":
             self.life = self.life[1:]
+            return self.life
         if option == "counter":
             self.hand = self.hand[amount:]
+            return self.hand
         if option == "deck":
             self.cards = self.cards[amount:]
+            return self.cards
 
 class Card:
     def __init__(self):
@@ -92,3 +112,9 @@ class Card:
 # 
 # counters = [item["counter"] for item in deck.cards]
 # print(counters)
+
+# ans = coll.find_one({"uid":{"$numberLong": "oops no peeking"}},{"_id":0,"deck":1})
+# deck = ans["deck"]
+# 
+# my_deck = Deck(cards=deck)
+# print(my_deck.cards)
