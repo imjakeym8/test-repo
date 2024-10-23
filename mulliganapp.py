@@ -3,9 +3,9 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
-
 import mulligan
 
+load_dotenv()
 intents = discord.Intents.all()
 token = os.getenv('DC_JOLLIEB_TOKEN')
 local_uri = os.getenv('MONGODB_LOCAL_URI')
@@ -27,7 +27,7 @@ async def build(interaction: discord.Interaction):
     await interaction.response.send_message(embed=buttonguide, view=myview,ephemeral=True)
 
 class EmbedGuide(discord.Embed):
-    def __init__(self, title="Mulligan Simulator", description="Please build your deck first given the options below."):
+    def __init__(self, title="Deck Builder", description="Please build your deck first given the options below."):
         super().__init__(title=title,description=description)
 
 class MyButton(discord.ui.Button):
@@ -196,9 +196,10 @@ class FeedbackModal(discord.ui.Modal):
         coll = db.decks
 
         try:
-            ans = coll.find_one({"uid":interaction.user.id},{"_id":0})
+            int_uid = str(interaction.user.id)
+            ans = coll.find_one({"uid": int_uid},{"_id": 0})
             deck_data = {
-                "uid": interaction.user.id,
+                "uid": int_uid,
                 "deck": self.sum,
                 "stats": self.ratios
             }
@@ -207,7 +208,7 @@ class FeedbackModal(discord.ui.Modal):
                 # print("Added.")
                 await interaction.followup.send("Deck saved successfully!", ephemeral=True)
             else:
-                coll.update_one({"uid": interaction.user.id}, {"$set": deck_data})
+                coll.update_one({"uid": int_uid}, {"$set": deck_data})
                 await interaction.followup.send("Deck updated successfully!", ephemeral=True)
         
         except Exception as e:
@@ -307,48 +308,8 @@ class DeckButton(discord.ui.View):
         feedbackmodal.update_stagent = True
         await interaction.response.send_modal(feedbackmodal)
 
-#    async def on_submit(self, interaction: discord.Interaction):
-#        # Process the values as needed. Here's an example message:
-#        feedback = (
-#            f"Counter 1000: {self.counter_1k.value or 'None'}\n"
-#            f"Counter 2000: {self.counter_2k.value or 'None'}\n"
-#            f"No Counter: {self.counter_n.value or 'None'}"
-#        )
-#        await interaction.response.send_message(feedback, ephemeral=True)
-#
-#        if counter_1k is not None:
-#
-#        if counter_2k is not None:
-#        if counter_n is not None:
+@bot.command()
+async def mulligan(ctx):
+    pass
 
-#class NumberSelectView(discord.ui.View):
-#    def __init__(self):
-#        super().__init__(timeout=None)
-#        
-#        # Generate options from 1 to 50
-#        options = [discord.SelectOption(label=str(i), value=str(i)) for i in range(1, 26)]
-#        
-#        # Create the dropdown menu
-#        self.select = discord.ui.Select(
-#            placeholder="Select a number between 1 and 50...",
-#            options=options,
-#            min_values=1,
-#            max_values=1  # Allow only single selection
-#        )
-#        
-#        # Set callback for selection
-#        self.select.callback = self.select_callback
-#        self.add_item(self.select)
-#
-#    async def select_callback(self, interaction: discord.Interaction):
-#        selected_value = self.select.values[0]  # Retrieve the selected value
-#        await interaction.response.send_message(f"You selected number: {selected_value}", ephemeral=True)
-#
-## Command to trigger the number selection
-#@bot.command(name="select_number")
-#async def select_number(ctx):
-#    view = NumberSelectView()
-#    await ctx.send("Choose a number between 1 and 50:", view=view)
-
-# Run the bot
 bot.run(token)
