@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from dotenv import load_dotenv
-import mulligan
+import mulligan as mg
 
 load_dotenv()
 intents = discord.Intents.all()
@@ -11,7 +11,7 @@ token = os.getenv('DC_JOLLIEB_TOKEN')
 local_uri = os.getenv('MONGODB_LOCAL_URI')
 bot = commands.Bot(command_prefix="/", intents=intents)
 
-cardtype = mulligan.Card()
+cardtype = mg.Card()
 
 @bot.event
 async def on_ready():
@@ -127,30 +127,39 @@ class FeedbackModal(discord.ui.Modal):
         event_list = [ each["counter"] for each in self.sum if each["counter"] >= 2000 and each["type"] == "event"]
         trigger_list = [ each["trigger"] for each in self.sum if each["trigger"] is True]
 
+        character_count = len(self.parent_view.character)
+        event_count = len(self.parent_view.event)
+        stage_count = len(self.parent_view.stage)
+        character_ratio = character_count / 50 * 100 if self.parent_view.character != [] else 0
+        event_ratio = event_count / 50 * 100 if self.parent_view.event != [] else 0
+        stage_ratio = stage_count / 50 * 100 if self.parent_view.stage != [] else 0
         brick_ratio = len(brick_list) / 50 * 100 if brick_list != [] else 0
         counter_ratio = len(counter_list) / 50 * 100 if counter_list != [] else 0
         counter1k_ratio = len(counter1k_list) / 50 * 100 if counter1k_list != [] else 0
         counter2k_ratio = len(counter2k_list) / 50 * 100 if counter2k_list != [] else 0
-        event_ratio = len(event_list) / 50 * 100 if event_list != [] else 0      
+        counterevent_ratio = len(event_list) / 50 * 100 if event_list != [] else 0      
         trigger_ratio = len(trigger_list) / 50 * 100 if trigger_list != [] else 0
         
         self.ratios = [
+            {"type": "character", "ratio": character_ratio ,"count": character_count},
+            {"type": "event", "ratio": event_ratio,"count": event_count},
+            {"type": "stage", "ratio": stage_ratio,"count": stage_count},
             {"category": "Bricks", "ratio": brick_ratio, "count": len(brick_list)},
             {"category": "1000 Counters", "ratio": counter1k_ratio, "count": len(counter1k_list)},
             {"category": "2000 Counters", "ratio": counter2k_ratio, "count": len(counter2k_list)},
-            {"category": "Event Counters", "ratio": event_ratio, "count": len(event_list)},
+            {"category": "Event Counters", "ratio": counterevent_ratio, "count": len(event_list)},
             {"category": "Total Counters", "ratio": counter_ratio, "count": len(counter_list)},
             {"category": "Triggers", "ratio": trigger_ratio, "count": len(trigger_list)},
         ]
 
         embed = EmbedGuide(description="Here are your deck's stats.\n\nPress `Save` to register your deck.")
-        embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
-        embed.add_field(name="Events",value=str(len(self.parent_view.event)))
-        embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
+        embed.add_field(name="Characters",value=f"{character_count}")
+        embed.add_field(name="Events",value=f"{event_count}")
+        embed.add_field(name="Stages",value=f"{stage_count}")
         embed.add_field(name="Bricks",value=f"{int(brick_ratio)} % ({len(brick_list)} out of 50 cards)",inline=False)
         embed.add_field(name="1000 Counters",value=f"{int(counter1k_ratio)} % ({len(counter1k_list)} out of 50 cards)",inline=False)
         embed.add_field(name="2000 Counters",value=f"{int(counter2k_ratio)} % ({len(counter2k_list)} out of 50 cards)",inline=False)
-        embed.add_field(name="Event Counters",value=f"{int(event_ratio)} % ({len(event_list)} out of 50 cards)",inline=False)
+        embed.add_field(name="Event Counters",value=f"{int(counterevent_ratio)} % ({len(event_list)} out of 50 cards)",inline=False)
         embed.add_field(name="Total Counters",value=f"{int(counter_ratio)} % ({len(counter_list)} out of 50 cards)",inline=False)
         embed.add_field(name="Triggers",value=f"{int(trigger_ratio)} % ({len(trigger_list)} out of 50 cards)",inline=False)
         embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
@@ -167,19 +176,28 @@ class FeedbackModal(discord.ui.Modal):
         trigger_list = [each["trigger"] for each in self.sum if each["trigger"] is True]
 
         # Calculate ratios
+        character_count = len(self.parent_view.character)
+        event_count = len(self.parent_view.event)
+        stage_count = len(self.parent_view.stage)
+        character_ratio = character_count / 50 * 100 if self.parent_view.character != [] else 0
+        event_ratio = event_count / 50 * 100 if self.parent_view.event != [] else 0
+        stage_ratio = stage_count / 50 * 100 if self.parent_view.stage != [] else 0
         brick_ratio = len(brick_list) / 50 * 100 if brick_list else 0
         counter_ratio = len(counter_list) / 50 * 100 if counter_list else 0
         counter1k_ratio = len(counter1k_list) / 50 * 100 if counter1k_list else 0
         counter2k_ratio = len(counter2k_list) / 50 * 100 if counter2k_list else 0
-        event_ratio = len(event_list) / 50 * 100 if event_list else 0      
+        counterevent_ratio = len(event_list) / 50 * 100 if event_list else 0      
         trigger_ratio = len(trigger_list) / 50 * 100 if trigger_list else 0
 
         # Store ratios in a list of dictionaries
         self.ratios = [
+            {"type": "character", "ratio": character_ratio ,"count": character_count},
+            {"type": "event", "ratio": event_ratio,"count": event_count},
+            {"type": "stage", "ratio": stage_ratio,"count": stage_count},
             {"category": "Bricks", "ratio": brick_ratio, "count": len(brick_list)},
             {"category": "1000 Counters", "ratio": counter1k_ratio, "count": len(counter1k_list)},
             {"category": "2000 Counters", "ratio": counter2k_ratio, "count": len(counter2k_list)},
-            {"category": "Event Counters", "ratio": event_ratio, "count": len(event_list)},
+            {"category": "Event Counters", "ratio": counterevent_ratio, "count": len(event_list)},
             {"category": "Total Counters", "ratio": counter_ratio, "count": len(counter_list)},
             {"category": "Triggers", "ratio": trigger_ratio, "count": len(trigger_list)},
         ]
@@ -308,8 +326,30 @@ class DeckButton(discord.ui.View):
         feedbackmodal.update_stagent = True
         await interaction.response.send_modal(feedbackmodal)
 
-@bot.command()
-async def mulligan(ctx):
-    pass
+@bot.tree.command(name="mulligan", description="Test your deck real-time for mulligans, triggers, and draw odds.")
+async def mulligan(interaction: discord.Interaction):
+    from pymongo import MongoClient
+    client = MongoClient(local_uri)
+    db = client.mulligan
+    coll = db.decks
+
+    doc = coll.find_one({"uid":str(interaction.user.id)},{"_id":0})
+    deck = doc["deck"]
+    deckstats = doc["stats"]
+
+    my_deck = mg.Deck(cards=deck, stats=deckstats)
+    await interaction.response.send_message(my_deck.stats)
+
+    # embed = EmbedGuide(description="Here are your deck's stats.\n\nPress `Save` to register your deck.")
+    # embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
+    # embed.add_field(name="Events",value=str(len(self.parent_view.event)))
+    # embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
+    # embed.add_field(name="Bricks",value=f"{int(brick_ratio)} % ({len(brick_list)} out of 50 cards)",inline=False)
+    # embed.add_field(name="1000 Counters",value=f"{int(counter1k_ratio)} % ({len(counter1k_list)} out of 50 cards)",inline=False)
+    # embed.add_field(name="2000 Counters",value=f"{int(counter2k_ratio)} % ({len(counter2k_list)} out of 50 cards)",inline=False)
+    # embed.add_field(name="Event Counters",value=f"{int(counterevent_ratio)} % ({len(event_list)} out of 50 cards)",inline=False)
+    # embed.add_field(name="Total Counters",value=f"{int(counter_ratio)} % ({len(counter_list)} out of 50 cards)",inline=False)
+    # embed.add_field(name="Triggers",value=f"{int(trigger_ratio)} % ({len(trigger_list)} out of 50 cards)",inline=False)
+    # embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
 
 bot.run(token)

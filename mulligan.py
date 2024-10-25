@@ -23,13 +23,15 @@ coll = db.decks
 # Its effect can also remove one or more cards from hand.
 
 class Deck:
-    def __init__(self, cards: list):
+    def __init__(self, cards: list, stats: list):
         self.life = None
         self.hand = None
         if len(cards) == 50: #50
             self.cards = cards
+            self.stats = stats
         else:
             raise ValueError("The deck must contain exactly 50 cards.")
+        
         
     def check(self):
         return [self.hand, self.life, self.cards]
@@ -113,8 +115,9 @@ class Card:
 # counters = [item["counter"] for item in deck.cards]
 # print(counters)
 
-# ans = coll.find_one({"uid":{"$numberLong": "oops no peeking"}},{"_id":0,"deck":1})
+# ans = coll.find_one({"uid":"905437853851471883"},{"_id":0})
 # deck = ans["deck"]
-# 
+# stats = ans["stats"]
+#  
 # my_deck = Deck(cards=deck)
 # print(my_deck.cards)
