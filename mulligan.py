@@ -115,7 +115,7 @@ class Card:
 # counters = [item["counter"] for item in deck.cards]
 # print(counters)
 
-# ans = coll.find_one({"uid":"905437853851471883"},{"_id":0})
+# ans = coll.find_one({"uid":""},{"_id":0})
 # deck = ans["deck"]
 # stats = ans["stats"]
 #  
