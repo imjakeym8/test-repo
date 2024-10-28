@@ -61,7 +61,7 @@ class FeedbackModal(discord.ui.Modal):
             self.add_item(text_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         answers = [ text_input.value for text_input in self.text_inputs ]
     
         if getattr(self, 'update_character', False):
@@ -119,7 +119,7 @@ class FeedbackModal(discord.ui.Modal):
 
     async def checkstats(self, interaction:discord.Interaction):
         # Calculate percentage of bricks, counters 1k, counter 2k, counters inc. events, event counters, triggers.
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         brick_list = [ each["counter"] for each in self.sum if each["counter"] < 1000 ]
         counter_list = [ each["counter"] for each in self.sum if each["counter"] >= 1000 ]
         counter1k_list = [ each["counter"] for each in self.sum if each["counter"] == 1000 and each["type"] == "character" ]
@@ -203,7 +203,7 @@ class FeedbackModal(discord.ui.Modal):
         ]
 
     async def save_callback(self, interaction:discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         
         if self.ratios is None:
             await self.savestats()
@@ -259,7 +259,7 @@ class DeckButton(discord.ui.View):
         ]
 
     async def ctrigger_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.cmodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.cntmodal_callback))
@@ -267,7 +267,7 @@ class DeckButton(discord.ui.View):
         await interaction.edit_original_response(view=trigger)
     
     async def etrigger_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.emodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.entmodal_callback))
@@ -275,7 +275,7 @@ class DeckButton(discord.ui.View):
         await interaction.edit_original_response(view=trigger)   
 
     async def strigger_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         trigger = TriggerButton()
         trigger.add_item(MyButton(label="Has Trigger", callback=self.smodal_callback))
         trigger.add_item(MyButton(label="No Trigger", callback=self.sntmodal_callback))
@@ -283,7 +283,7 @@ class DeckButton(discord.ui.View):
         await interaction.edit_original_response(view=trigger)
     
     async def back_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()
+        await interaction.response.defer(ephemeral=True)
         await interaction.edit_original_response(view=self)
 
     async def cmodal_callback(self, interaction: discord.Interaction):
@@ -328,6 +328,7 @@ class DeckButton(discord.ui.View):
 
 @bot.tree.command(name="mulligan", description="Test your deck real-time for mulligans, triggers, and draw odds.")
 async def mulligan(interaction: discord.Interaction):
+    await interaction.response.defer(ephemeral=True)
     from pymongo import MongoClient
     client = MongoClient(local_uri)
     db = client.mulligan
@@ -335,21 +336,31 @@ async def mulligan(interaction: discord.Interaction):
 
     doc = coll.find_one({"uid":str(interaction.user.id)},{"_id":0})
     deck = doc["deck"]
-    deckstats = doc["stats"]
+    stats = doc["stats"]
 
-    my_deck = mg.Deck(cards=deck, stats=deckstats)
-    await interaction.response.send_message(my_deck.stats)
+    # my_deck = mg.Deck(cards=deck, stats=deckstats) # for using Deck functions
 
-    # embed = EmbedGuide(description="Here are your deck's stats.\n\nPress `Save` to register your deck.")
-    # embed.add_field(name="Characters",value=str(len(self.parent_view.character)))
-    # embed.add_field(name="Events",value=str(len(self.parent_view.event)))
-    # embed.add_field(name="Stages",value=str(len(self.parent_view.stage)))
-    # embed.add_field(name="Bricks",value=f"{int(brick_ratio)} % ({len(brick_list)} out of 50 cards)",inline=False)
-    # embed.add_field(name="1000 Counters",value=f"{int(counter1k_ratio)} % ({len(counter1k_list)} out of 50 cards)",inline=False)
-    # embed.add_field(name="2000 Counters",value=f"{int(counter2k_ratio)} % ({len(counter2k_list)} out of 50 cards)",inline=False)
-    # embed.add_field(name="Event Counters",value=f"{int(counterevent_ratio)} % ({len(event_list)} out of 50 cards)",inline=False)
-    # embed.add_field(name="Total Counters",value=f"{int(counter_ratio)} % ({len(counter_list)} out of 50 cards)",inline=False)
-    # embed.add_field(name="Triggers",value=f"{int(trigger_ratio)} % ({len(trigger_list)} out of 50 cards)",inline=False)
-    # embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
+    class SimView(discord.ui.View):
+        def __init__(self, *, timeout: float | None = 180):
+            super().__init__(timeout=timeout)
+        
+        @discord.ui.button(label="Start",style=discord.ButtonStyle.green)
+        async def start(self, interaction: discord.Interaction, button:discord.ui.Button):
+            await interaction.response.defer(ephemeral=True)
+            await interaction.followup.send("Done",ephemeral=True)
+
+    view = SimView()
+    embed = EmbedGuide(description=f"Hi, `{interaction.user.display_name}`.\n\nHere are your deck's initial stats. Press `Start` to begin the simulator.")
+    embed.add_field(name="Characters",value=f"{stats[0]['count']} cards. ({int(stats[0]['ratio'])} %)")
+    embed.add_field(name="Events",value=f"{stats[1]['count']} cards. ({int(stats[1]['ratio'])} %)")
+    embed.add_field(name="Stages",value=f"{stats[2]['count']} cards. ({int(stats[2]['ratio'])} %)")
+    embed.add_field(name="Bricks",value=f"{stats[3]['count']} cards. ({int(stats[3]['ratio'])} %)")
+    embed.add_field(name="Triggers",value=f"{stats[8]['count']} cards. ({int(stats[8]['ratio'])} %)")
+    embed.add_field(name="1000 Counters",value=f"{stats[4]['count']} cards. ({int(stats[4]['ratio'])} %)")
+    embed.add_field(name="2000 Counters",value=f"{stats[4]['count']} cards. ({int(stats[4]['ratio'])} %)")
+    embed.add_field(name="Event Counters",value=f"{stats[5]['count']} cards. ({int(stats[5]['ratio'])} %)")
+    embed.add_field(name="Total Counters",value=f"{stats[5]['count']} cards. ({int(stats[5]['ratio'])} %)")
+    embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
+    await interaction.edit_original_response(embed=embed,view=view)
 
 bot.run(token)

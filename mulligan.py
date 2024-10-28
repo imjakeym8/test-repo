@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 
 
 local_uri = os.getenv('MONGODB_LOCAL_URI')
+jollieb = os.getenv('JOLLIEB')
 client = mc(local_uri)
 db = client.mulligan
 coll = db.decks
@@ -36,14 +37,18 @@ class Deck:
     def check(self):
         return [self.hand, self.life, self.cards]
 
-    def shuffle(self):
+    def shuffle(self, option: bool = False):
         random.shuffle(self.cards)
+        if option is True:
+            return self.hand
     
     def draw_five(self, option: bool = False):
         self.hand = self.cards[:5]
         if option is True:
             self.cards = self.cards[5:]
-        return self.hand
+            return self.hand
+        else:
+            return self.hand
 
     def add_life(self, number):
         self.life = self.cards[:number]
@@ -60,7 +65,7 @@ class Deck:
         self.life = self.life[1:]
         return [self.hand, self.life]
     
-    def play(self, amount):
+    def play(self, amount): #what if this is a discord select?
             self.hand = self.hand[amount:]
             return self.hand
 
@@ -99,25 +104,25 @@ class Card:
         self.E6T = {"type":"event","counter":6000,"trigger":True}
         self.ST = {"type":"stage","counter":0,"trigger":True}
         self.S = {"type":"stage","counter":0,"trigger":False}
-    
-# my_deck = Deck([1,2,3,4,5,6,7,8,9,10])
-# my_deck.shuffle()
-# print(my_deck.draw_five(True))
-# my_deck.add_life(2)
-# print(my_deck.take_life())
 
-# card = Card()
-# 
-# decklist = []
-# 
-# 
-# 
-# counters = [item["counter"] for item in deck.cards]
-# print(counters)
+doc = coll.find_one({"uid":str(jollieb)},{"_id":0})
+deck = doc["deck"]
+stats = doc["stats"]
 
-# ans = coll.find_one({"uid":""},{"_id":0})
-# deck = ans["deck"]
-# stats = ans["stats"]
-#  
-# my_deck = Deck(cards=deck)
-# print(my_deck.cards)
+sim = Deck(cards=deck,stats=stats)
+
+# After pressing "Start"
+sim.shuffle()
+hand = sim.draw_five()
+print(f"1st hand: {hand}")
+
+# If user presses mulligan
+sim.shuffle()
+hand = sim.draw_five()
+print(f"2nd hand: {hand}")
+
+# If not:
+hand = sim.draw_five(True)
+
+print(f"Final hand: {hand}")
+
