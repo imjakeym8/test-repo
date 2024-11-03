@@ -25,8 +25,10 @@ coll = db.decks
 
 class Deck:
     def __init__(self, cards: list, stats: list):
-        self.life = None
-        self.hand = None
+        self.life = []
+        self.hand = []
+        self.trash = []
+        self.field = []
         if len(cards) == 50: #50
             self.cards = cards
             self.stats = stats
@@ -50,7 +52,7 @@ class Deck:
         else:
             return self.hand
 
-    def add_life(self, number):
+    def add_life(self, number: int):
         self.life = self.cards[:number]
         self.cards = self.cards[number:]
         return [self.life, self.cards]
@@ -65,20 +67,36 @@ class Deck:
         self.life = self.life[1:]
         return [self.hand, self.life]
     
-    def play(self, amount): #what if this is a discord select?
-            self.hand = self.hand[amount:]
-            return self.hand
+    def play(self, amount: int): #what if this is a discord select?
+        self.field = self.hand[:amount]
+        self.hand = self.hand[amount:]
+        return self.hand
 
-    def trash(self, option, amount=None):
-        if option == "trigger":
-            self.life = self.life[1:]
-            return self.life
-        if option == "counter":
-            self.hand = self.hand[amount:]
-            return self.hand
-        if option == "deck":
-            self.cards = self.cards[amount:]
-            return self.cards
+    def ko(self, amount: int): #what if this is a discord select?
+        self.trash = self.field[:amount]
+        self.field = self.field[amount:]
+        return self.field
+
+    def play_from_trash(self, amount: int): #what if this is a discord select?
+        self.field = self.trash[:amount]
+        self.trash = self.trash[amount:]
+
+    def counter(self, amount: int): #what if this is a discord select?
+        self.hand = self.hand[amount:]
+        return self.hand
+
+    def trigger(self): #If condition. Assumes all trigger effects go to play or trash, if your trigger effect may state draw, add_life, or remove from trash. use other functions accordingly.
+        self.trash = self.life[0]
+        self.life = self.life[1:]
+        return self.life
+    
+    def trash_deck(self, amount: int): 
+        self.cards = self.cards[amount:]
+        return self.cards
+
+    def checkstats(self): #should be displayed in an embed already
+        visible_cards = self.field + self.trash + self.hand
+        pass
 
 class Card:
     def __init__(self):
@@ -105,24 +123,40 @@ class Card:
         self.ST = {"type":"stage","counter":0,"trigger":True}
         self.S = {"type":"stage","counter":0,"trigger":False}
 
-doc = coll.find_one({"uid":str(jollieb)},{"_id":0})
-deck = doc["deck"]
-stats = doc["stats"]
-
-sim = Deck(cards=deck,stats=stats)
-
-# After pressing "Start"
-sim.shuffle()
-hand = sim.draw_five()
-print(f"1st hand: {hand}")
-
-# If user presses mulligan
-sim.shuffle()
-hand = sim.draw_five()
-print(f"2nd hand: {hand}")
-
-# If not:
-hand = sim.draw_five(True)
-
-print(f"Final hand: {hand}")
+# doc = coll.find_one({"uid":str(jollieb)},{"_id":0})
+# deck = doc["deck"]
+# stats = doc["stats"]
+# 
+# sim = Deck(cards=deck,stats=stats)
+# 
+# # After pressing "Start"
+# sim.shuffle()
+# hand = sim.draw_five()
+# print(f"1st hand: {hand}")
+# 
+# # If user presses mulligan
+# sim.shuffle()
+# hand = sim.draw_five()
+# print(f"2nd hand: {hand}")
+# 
+# # If not:
+# hand = sim.draw_five(True)
+# 
+# # After Mulligan
+# sim.add_life(4) #Zoro Sanji
+# print(f"Life: {sim.life}")
+# 
+# ## Buttons (Attacking Turn):
+# #sim.draw()
+# #sim.play()
+# #sim.take_life()
+# #sim.add_life()
+# #sim.play_from_trash()
+# #sim.trash_deck()
+# #
+# ## Buttons (Defending Turn):
+# #sim.counter()
+# #sim.take_life() # Might have trigger, when it does sim.trigger()
+# 
+# print(f"Final hand: {hand}")
 

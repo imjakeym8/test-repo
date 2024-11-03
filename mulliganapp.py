@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import os
+from discord.utils import MISSING
 from dotenv import load_dotenv
 import mulligan as mg
 
@@ -336,30 +337,72 @@ async def mulligan(interaction: discord.Interaction):
 
     doc = coll.find_one({"uid":str(interaction.user.id)},{"_id":0})
     deck = doc["deck"]
-    stats = doc["stats"]
+    deckstats = doc["stats"]
+    my_deck = mg.Deck(cards=deck, stats=deckstats) # for using Deck functions
 
-    # my_deck = mg.Deck(cards=deck, stats=deckstats) # for using Deck functions
+    class LifeCount(discord.ui.Modal):
+        def __init__(self, title="Please input how many cards to add to life."):
+            super().__init__(title=title)
+            self.add_item(discord.ui.TextInput(style=discord.TextStyle.short, label="Life"))
 
-    class SimView(discord.ui.View):
+        async def on_submit(self, interaction: discord.Interaction):
+            try:
+                life = int(self.children[0].value)
+
+                my_deck.draw_five(option=True)
+                my_deck.add_life(life) # maybe assign the value?
+                await interaction.response.send_message(f"Added life cards: {life}, your life cards are now {len(my_deck.life)}", ephemeral=True)
+            except ValueError:
+                await interaction.response.send_message(f"Please input a number.", ephemeral=True)
+
+    class 
+
+    class StartView(discord.ui.View):
         def __init__(self, *, timeout: float | None = 180):
             super().__init__(timeout=timeout)
+            self.embed = None
         
+        def mulligan_five(self):
+            my_deck.shuffle()
+            hand = my_deck.draw_five()
+            f_desc = ""
+            for dict in hand:
+                type_card = dict['type']
+                counter_num = None if dict['counter'] == 0 else f" - {dict['counter']}"
+                trigger = "Has Trigger" if dict['trigger'] is True else "No Trigger"
+                f_desc = f_desc + f"{type_card.capitalize()} - {trigger}{counter_num}\n" if counter_num else f_desc + f"{type_card.capitalize()} - {trigger}\n"
+            return f_desc
+
         @discord.ui.button(label="Start",style=discord.ButtonStyle.green)
         async def start(self, interaction: discord.Interaction, button:discord.ui.Button):
-            await interaction.response.defer(ephemeral=True)
-            await interaction.followup.send("Done",ephemeral=True)
+            await interaction.response.defer(thinking=True, ephemeral=True)
+            self.embed = EmbedGuide(title="Here's your hand. You can press `Keep` or `Mulligan` below.",description=self.mulligan_five())
 
-    view = SimView()
+            mulligan_view = discord.ui.View()
+            mulligan_view.add_item(MyButton(label="Keep",callback=self.keep_callback))
+            mulligan_view.add_item(MyButton(label="Mulligan",callback=self.mulligan_callback))
+            await interaction.followup.send(embed=self.embed, view=mulligan_view)
+
+        async def keep_callback(self, interaction:discord.Interaction):
+            await interaction.response.send_modal(LifeCount())
+
+        async def mulligan_callback(self, interaction:discord.Interaction):
+            await interaction.response.defer(ephemeral=True)
+            self.embed.description = self.mulligan_five()
+            await interaction.edit_original_response(embed=self.embed)
+            
+    
+    view = StartView()
     embed = EmbedGuide(description=f"Hi, `{interaction.user.display_name}`.\n\nHere are your deck's initial stats. Press `Start` to begin the simulator.")
-    embed.add_field(name="Characters",value=f"{stats[0]['count']} cards. ({int(stats[0]['ratio'])} %)")
-    embed.add_field(name="Events",value=f"{stats[1]['count']} cards. ({int(stats[1]['ratio'])} %)")
-    embed.add_field(name="Stages",value=f"{stats[2]['count']} cards. ({int(stats[2]['ratio'])} %)")
-    embed.add_field(name="Bricks",value=f"{stats[3]['count']} cards. ({int(stats[3]['ratio'])} %)")
-    embed.add_field(name="Triggers",value=f"{stats[8]['count']} cards. ({int(stats[8]['ratio'])} %)")
-    embed.add_field(name="1000 Counters",value=f"{stats[4]['count']} cards. ({int(stats[4]['ratio'])} %)")
-    embed.add_field(name="2000 Counters",value=f"{stats[4]['count']} cards. ({int(stats[4]['ratio'])} %)")
-    embed.add_field(name="Event Counters",value=f"{stats[5]['count']} cards. ({int(stats[5]['ratio'])} %)")
-    embed.add_field(name="Total Counters",value=f"{stats[5]['count']} cards. ({int(stats[5]['ratio'])} %)")
+    embed.add_field(name="Characters",value=f"{deckstats[0]['count']} cards. ({int(deckstats[0]['ratio'])} %)")
+    embed.add_field(name="Events",value=f"{deckstats[1]['count']} cards. ({int(deckstats[1]['ratio'])} %)")
+    embed.add_field(name="Stages",value=f"{deckstats[2]['count']} cards. ({int(deckstats[2]['ratio'])} %)")
+    embed.add_field(name="Bricks",value=f"{deckstats[3]['count']} cards. ({int(deckstats[3]['ratio'])} %)")
+    embed.add_field(name="Triggers",value=f"{deckstats[8]['count']} cards. ({int(deckstats[8]['ratio'])} %)")
+    embed.add_field(name="1000 Counters",value=f"{deckstats[4]['count']} cards. ({int(deckstats[4]['ratio'])} %)")
+    embed.add_field(name="2000 Counters",value=f"{deckstats[4]['count']} cards. ({int(deckstats[4]['ratio'])} %)")
+    embed.add_field(name="Event Counters",value=f"{deckstats[5]['count']} cards. ({int(deckstats[5]['ratio'])} %)")
+    embed.add_field(name="Total Counters",value=f"{deckstats[5]['count']} cards. ({int(deckstats[5]['ratio'])} %)")
     embed.set_footer(text="Credits: https://github.com/imjakeym8",icon_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTvgBPvdDUKd0ffWXnQKSuyyYNGy1Sxa-DAmA&s")
     await interaction.edit_original_response(embed=embed,view=view)
 
