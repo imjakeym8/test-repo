@@ -351,21 +351,80 @@ async def mulligan(interaction: discord.Interaction):
 
                 my_deck.draw_five(option=True)
                 my_deck.add_life(life) # maybe assign the value?
-                await interaction.response.send_message(f"Added life cards: {life}, your life cards are now {len(my_deck.life)}", ephemeral=True)
+
+                view = SimView()
+                await interaction.response.edit_message(embed=view.embed,view=view)
             except ValueError:
                 await interaction.response.send_message(f"Please input a number.", ephemeral=True)
 
-    class 
+    class SimView(discord.ui.View):
+        def __init__(self, timeout=180):
+            super().__init__(timeout=timeout)
+            self.embed = discord.Embed(title="It's your turn. Select a few options below.", description=self.check_hand())
+            self.select = discord.ui.Select(placeholder="Play from your hand here..",options=[])
+
+            self.add_item(MyButton(label="Draw", style=discord.ButtonStyle.blurple, callback=self.draw))
+            self.add_item(MyButton(label="Play", style=discord.ButtonStyle.success, callback=self.play))
+
+        def check_hand(self):
+            hand = "**Hand:**\n"
+            for each_card in my_deck.hand:
+                type_card = each_card['type']
+                counter_num = f" - {each_card['counter']}" if each_card['counter'] != 0 else ""
+                trigger = "Has Trigger" if each_card['trigger'] is True else "No Trigger"
+                hand = hand + f"{type_card.capitalize()} - {trigger}{counter_num}\n"
+            return hand
+
+        async def update_options(self):
+            select_options = []
+            count = 0
+            for each_card in my_deck.hand:
+                count += 1
+                type_card = each_card['type']
+                counter_num = f" - {each_card['counter']}" if each_card['counter'] != 0 else ""
+                trigger = "Has Trigger" if each_card['trigger'] is True else "No Trigger"
+                select_options.append(discord.SelectOption(
+                    label=f"{type_card.capitalize()} - {trigger}{counter_num}",
+                    value=str(count)))
+            
+            self.select.options = select_options
+
+        async def draw(self, interaction:discord.Interaction):
+            my_deck.draw()
+            self.embed.description = self.check_hand()
+            await self.update_options()
+            if self.select in self.children:
+                self.remove_item(self.select)
+            await interaction.response.edit_message(embed=self.embed, view=self)
+
+        async def play(self, interaction:discord.Interaction):
+            self.embed.description = self.check_hand()
+            await self.update_options()
+            
+            if self.select in self.children:
+                self.remove_item(self.select)
+            self.add_item(self.select)
+
+            await interaction.response.edit_message(embed=self.embed, view=self) 
+#    
+#        @discord.ui.button(label=, style=)
+#        async def (self, interaction:discord.Interaction, button:discord.ui.Button):
+#    
+#        @discord.ui.button(label=, style=)
+#        async def (self, interaction:discord.Interaction, button:discord.ui.Button):
+#    
+#        @discord.ui.button(label=, style=)
+#        async def (self, interaction:discord.Interaction, button:discord.ui.Button):
 
     class StartView(discord.ui.View):
-        def __init__(self, *, timeout: float | None = 180):
+        def __init__(self, timeout=300):
             super().__init__(timeout=timeout)
             self.embed = None
         
         def mulligan_five(self):
             my_deck.shuffle()
             hand = my_deck.draw_five()
-            f_desc = ""
+            f_desc = "**Hand:**\n"
             for dict in hand:
                 type_card = dict['type']
                 counter_num = None if dict['counter'] == 0 else f" - {dict['counter']}"
@@ -375,21 +434,19 @@ async def mulligan(interaction: discord.Interaction):
 
         @discord.ui.button(label="Start",style=discord.ButtonStyle.green)
         async def start(self, interaction: discord.Interaction, button:discord.ui.Button):
-            await interaction.response.defer(thinking=True, ephemeral=True)
-            self.embed = EmbedGuide(title="Here's your hand. You can press `Keep` or `Mulligan` below.",description=self.mulligan_five())
+            self.embed = discord.Embed(title="Here's your hand. You can press `Keep` or `Mulligan` below.",description=self.mulligan_five())
 
             mulligan_view = discord.ui.View()
             mulligan_view.add_item(MyButton(label="Keep",callback=self.keep_callback))
             mulligan_view.add_item(MyButton(label="Mulligan",callback=self.mulligan_callback))
-            await interaction.followup.send(embed=self.embed, view=mulligan_view)
+            await interaction.response.edit_message(embed=self.embed, view=mulligan_view)
 
         async def keep_callback(self, interaction:discord.Interaction):
             await interaction.response.send_modal(LifeCount())
 
         async def mulligan_callback(self, interaction:discord.Interaction):
-            await interaction.response.defer(ephemeral=True)
             self.embed.description = self.mulligan_five()
-            await interaction.edit_original_response(embed=self.embed)
+            await interaction.response.edit_message(embed=self.embed)
             
     
     view = StartView()
